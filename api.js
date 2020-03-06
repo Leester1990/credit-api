@@ -4,7 +4,7 @@ let app = new express();
 // let db = require("./db/db.js");
 // let mysql = require("mysql");
 let bodyParser = require("body-parser");
-// let commonBase = require("./common/base.js");
+let commonBase = require("./common/base.js");
 
 app.use(bodyParser.json());
 
@@ -15,29 +15,24 @@ var apiCommon = require('./modules/common');
 
 //设置跨域访问
 app.all('*', function (req, res, next) {
-    //res.header("Access-Control-Allow-Origin", "http://localhost:8190");
-    // res.header("Access-Control-Allow-Origin", "*");
-    //res.header("Access-Control-Allow-Credentials", true);
-    //res.header("Access-Control-Allow-Methods", "PUT,POST,GET,DELETE,OPTIONS");
-    //res.header("X-Powered-By", ' 3.2.1');
-    //res.header("Content-Type", "application/json;charset=utf-8");
-    //res.header("Access-Control-Allow-Headers", "X-Requested-With,token");
-    //console.log("req.headers", req.headers.token);
-    //next();
-
-
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Methods", "*");
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Headers", "Content-Type,Access-Token,adminid");
-    res.header("Access-Control-Expose-Headers", "*");
-    res.header("Access-Control-Allow-Headers", "X-Requested-With,token");
-    //如果需要使用put和delete需要对OPTION返回响应
-    // if (req.method == 'OPTIONS') {
-    //     res.send('');
-    //     return;
-    // }
-    next();
+    res.header("Access-Control-Allow-Headers", "Content-Type,token");
+    res.header("Access-Control-Allow-Methods", "PUT,POST,GET,DELETE,OPTIONS");
+    res.header("X-Powered-By", ' 3.2.1')
+    res.header("Content-Type", "application/json;charset=utf-8");
+
+    if (req.headers.token) {
+        // 全局判断token是否过期
+        let checkUser = commonBase.base.checkUserTokenValid(req.headers.token)
+        console.log(checkUser)
+        if (checkUser.status) {
+            next()
+        } else {
+            res.json(checkUser)
+        }
+    } else {
+        next()
+    }
 });
 
 // 所有后端API根路径

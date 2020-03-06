@@ -1,5 +1,7 @@
 let CryptoJS = require("crypto-js");
+const crypto = require('crypto')
 exports.base = {
+	LOGIN_VALID_TIME: 100,
 	// 获取顶级分类
 	createFirstArr(arr, id) {
 		let childs = [];
@@ -104,5 +106,58 @@ exports.base = {
 			padding: CryptoJS.pad.Pkcs7
 		});
 		return encrypted.ciphertext.toString().toUpperCase();
+	},
+	// token混淆字符串
+	tokenKey: "c7f504e276aa62480482a705c7d70036",
+	// token加密
+	tokenEncrypt(data, mobile) {
+		data = data.toString()
+		const cipher = crypto.createCipher('aes192', this.tokenKey)
+		var crypted = cipher.update(data, 'utf8', 'hex')
+		crypted += cipher.final('hex')
+		return crypted
+	},
+	// token解码
+	tokenDecrypt(encrypted, key) {
+		const decipher = crypto.createDecipher('aes192', key)
+		var decrypted = decipher.update(encrypted, 'hex', 'utf8')
+		decrypted += decipher.final('utf8')
+		return decrypted
+	},
+	// 创建token
+	createToken(req, data) {
+		let one = this.tokenEncrypt(data.username)
+		let phoneTime = `phone=${data.mobile},time=${new Date().getTime()}`
+		let two = this.tokenEncrypt(phoneTime)
+		let three = this.tokenEncrypt([req.deviceSource, req.appVersion].join(","))
+		return `${one}.${two}.${three}`
+	},
+	// 解码token
+	deCodeToken(token) {
+		let tokenArr = token.split(".")
+		let one = this.tokenDecrypt(tokenArr[0], this.tokenKey)
+		let two = this.tokenDecrypt(tokenArr[1], this.tokenKey)
+		let three = this.tokenDecrypt(tokenArr[2], this.tokenKey)
+		let twoArr = two.split(",")
+		return {
+			username: one,
+			userId: one.replace(/(60136|00000)/gi, ''),
+			customerNo: one.replace(/(00000)/gi, ''),
+			phone: twoArr[0].replace("phone=", ""),
+			loginTime: twoArr[1].replace("time=", ""),
+			deviceSource: three.split(",")[0],
+			appVersion: three.split(",")[1]
+		}
+	},
+	// 检查用户token状态
+	checkUserTokenValid(token) {
+		console.log(token)
+		let deToken = this.deCodeToken(token)
+		let obj = {
+			status: false,
+			code: 9001,
+			data: deToken
+		}
+		return obj
 	}
 };

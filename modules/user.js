@@ -6,6 +6,11 @@ let md5 = require("md5");
 let mysql = require("mysql");
 let sqlOp = require("../sql-op/index");
 let commonBase = require("../common/base");
+let bodyParser = require("body-parser");
+
+router.use(bodyParser.urlencoded({
+    extended: false
+}))
 
 // 连接数据库
 var conn = mysql.createConnection(db.mysql);
@@ -13,7 +18,7 @@ conn.connect((err) => {
     if (err) {
         console.log('数据库链接失败')
     }
-    console.log('数据库链接成功...')
+    console.log('用户数据库链接成功...')
 });
 
 router.post("/test-login", (req, res) => {
@@ -29,16 +34,10 @@ router.post("/test-login", (req, res) => {
 
 // 用户登录
 router.post("/login", (req, res) => {
-    return res.json({
-        message: "本地自写接口成功，用户登录成功",
-        data: {
-            username: "江枫渔火",
-            token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI2MDEzOTI4MjMwMDAwMjQiLCJkZXZpY2VTb3VyY2UiOiJXRUIiLCJleHAiOjE1ODA4OTY1NDUsImlhdCI6MTU3ODMwNDU0NX0.RWw5y8VZwgsBAmBFuWIdMKR7k9bI3pVdCyWOPfqO8xU",
-            customerNo: 619043540000
-        },
-        code: "000000000000"
-    });
-    let sql1 = "SELECT * FROM `any_user` WHERE mobile=" + req.body.mobile;
+    let mobile = req.body.mobile
+
+    let sql1 = "SELECT * FROM `user` WHERE mobile=" + mobile;
+
     conn.query(sql1, function (err, result) {
         if (err) {
             return res.json({
@@ -47,57 +46,23 @@ router.post("/login", (req, res) => {
             });
         }
         if (result) {
-            let data = result[0];
-            let sql2 = "SELECT * FROM `any_cate`";
-            let sql3 = "SELECT * FROM `any_user_auth` WHERE user_id=" + data.id;
-            let sqlMore = `${sql2};${sql3}`;
+            result[0].username = `60136${result[0].id}00000`
+            let token = commonBase.base.createToken(req.query, result[0])
+            let data = commonBase.base.delSomeData(result[0], ["password", "create_time", "id", 'update_time'])
+            data.token = token
 
-            // 判断用户名和密码
-            if (md5(req.body.password) != data.password) {
-                return res.json({
-                    message: "用户名和密码输入不正确",
-                    code: 202
-                });
-            }
-
-            // 查询分类和权限
-            conn.query(sqlMore, function (err, dataResult) {
-                if (err) {
-                    return res.json({
-                        message: "用户登录失败",
-                        code: 202
-                    });
-                }
-                if (dataResult) {
-                    let getUserCate = null;
-                    if (dataResult[1].length > 0) {
-                        let getUserAuthArr = commonBase.base.getUserAuthCate(dataResult[1][0].user_auth, dataResult[0]);
-                        getUserCate = commonBase.base.infiniteClassify(getUserAuthArr, "id", "parent_id");
-                    }
-                    data = commonBase.base.delSomeData(data, ["password", "create_time", "id"]);
-
-                    return res.json({
-                        message: "用户登录成功",
-                        code: 200,
-                        data: {
-                            user: data,
-                            cate: getUserCate
-                        }
-                    });
-                }
-            })
-        } else {
             return res.json({
-                message: "用户登录失败",
-                code: 201
+                message: "用户登录成功",
+                code: 200,
+                data: data
             });
         }
-    });
+    })
 })
 
 // 获取用户数据
 router.get("/get-user", (req, res) => {
-    let sql = "SELECT * FROM `any_user` LIMIT 0, 100";
+    let sql = "SELECT * FROM `user` LIMIT 0, 10";
     conn.query(sql, function (err, result) {
         if (err) {
             console.log(res);
